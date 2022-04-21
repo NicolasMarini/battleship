@@ -42,25 +42,28 @@ const initialState = {
   boards: { boardPlayer1, boardCPU }
 }
 
+const shipsToPlace = [
+  shipIds.carrier,
+  shipIds.cruiser1,
+  shipIds.cruiser2,
+  shipIds.cruiser3,
+  shipIds.submarine
+]
+
+const findShipIndexInArray = currentShipId =>
+  shipsToPlace.findIndex(shipId => shipId === currentShipId)
+
 const reducer = (state = initialState, action) => {
   console.log("action: ", action)
   switch (action.type) {
-    case "SELECT_SHIP":
-      console.log("SELECT_SHIP payload: ", action.payload)
+    case "PLACE_SHIP":
+      // let cells = [...state.carrier.cells]
+      // cells = ["a10", "b10", "c10", "d10"]
+      const previousIndex = findShipIndexInArray(action.payload.shipId)
+
       return {
         ...state,
-        selectedShip: action.payload
-      }
-
-    case "PLACE_SHIP":
-      console.log("PLACE_SHIP: ", action)
-      if (action.payload.shipType === "carrier") {
-        let cells = [...state.carrier.cells]
-        cells = ["a10", "b10", "c10", "d10"]
-        return {
-          ...state,
-          carrier: { cells }
-        }
+        currentShipToPlace: shipsToPlace[previousIndex + 1]
       }
 
     default:
