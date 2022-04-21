@@ -1,4 +1,4 @@
-export default shipIds = {
+export default {
   carrier: "carrier",
   cruiser1: "cruiser1",
   cruiser2: "cruiser2",

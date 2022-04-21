@@ -1,4 +1,4 @@
-export default shipTypes = {
+export default {
   carrier: "carrier",
   cruiser: "cruiser",
   submarine: "submarine"
