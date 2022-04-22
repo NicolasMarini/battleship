@@ -88,10 +88,20 @@ export const getBoardEntries = board => {
   return Object.entries(board)
 }
 
-export const getPaintedCells = board => {
-  const boardLetters = getBoardKeys(board)
-  const paintedCells = []
+export const getPaintedCells = player => {
+  // const boardLetters = getBoardKeys(board)
 
+  const { ships } = player
+  let paintedCells = []
+  ships.forEach(ship => {
+    if (ship.cells.length > 0) {
+      paintedCells = [...paintedCells, ...ship.cells]
+    }
+  })
+
+  return paintedCells
+
+  /*
   boardLetters.forEach(letter => {
     // console.log("function prueba letter: ", letter)
     for (let i = 1; i <= 10; i++) {
@@ -102,7 +112,7 @@ export const getPaintedCells = board => {
     }
   })
   console.log("paintedCells:: ", paintedCells)
-  return paintedCells
+  return paintedCells*/
 }
 
 /*
@@ -201,126 +211,55 @@ const splitCellId = cellId => {
 
   console.log("cell obj: ", {
     letter: cellIdAsArray[0],
-    number: cellIdAsArray[1]
+    number: cellId.substr(1, cellId.length - 1)
   })
-  return { letter: cellIdAsArray[0], number: cellIdAsArray[1] }
+  return {
+    letter: cellIdAsArray[0],
+    number: cellId.substr(1, cellId.length - 1)
+  }
+}
+
+export const findShipById = (player, shipId) =>
+  player.ships.find(shipItem => shipItem.id === shipId)
+
+// function that receives the current list of ships from state (for a specific player)
+// and updates that list with the new ship placed in the board
+const updatedPlayerShips = (playerShips, shipId, updatedShipNew) => {
+  const updatedShipsArray = []
+
+  playerShips.forEach(ship => {
+    if (ship.id === shipId) {
+      const updatedShip = {
+        ...ship,
+        cells: updatedShipNew.cells
+      }
+      updatedShipsArray.push(updatedShip)
+    } else {
+      updatedShipsArray.push(ship)
+    }
+  })
+
+  return updatedShipsArray
+}
+
+const fillShipCells = (shipToFill, cellNumber, firstLetterIndex) => {
+  const updatedShip = { ...shipToFill }
+
+  for (let i = 0; i < updatedShip.size; i++) {
+    updatedShip.cells = [
+      ...updatedShip.cells,
+      `${letters[firstLetterIndex + i]}${cellNumber}`
+    ]
+  }
+
+  return updatedShip
 }
 
 const reducer = (state = initialState, action) => {
   // console.log("action: ", action)
   switch (action.type) {
     case "PLACE_SHIP":
-      /*
-      const { shipId, letter, number } = action.payload
-
-      // console.log("payload: ", action.payload)
-
-      const boardPlayer1 = state.boards.boardPlayer1
-
-      let cells = { ...boardPlayer1[letter][number] }
-      cells = { id: `${letter}${number}`, shipType: shipId, status: "PLACED" }
-
-      const currentShipIndex = findShipIndexInArray(shipId.id)
-
-      const numberOfAppearences = countAppearancesOfAShipOnTheBoard(
-        state.boards.boardPlayer1,
-        shipId
-      )
-
-      const currentSelectedShip = shipsToPlace.find(
-        ship => ship.id === shipId.id
-      )
-      console.log("currentSelectedShip: ", currentSelectedShip)
-
-      const isShipCompletelyPlaced =
-        numberOfAppearences === currentSelectedShip.size
-
-      console.log("currentShip size: ", currentSelectedShip.size)
-      // console.log("currentShipIndex: ", currentShipIndex)
-      console.log("numberOfAppearences: ", numberOfAppearences)
-      // console.log("shipsToPlace values: ", Object.values(shipsToPlace))
-      // console.log("shipsToPlace:: ", shipsToPlace)
-
-      console.log("isShipCompletelyPlaced: ", isShipCompletelyPlaced)
-
-      if (isShipCompletelyPlaced) console.log("completo...")
-      const nextShipIndex = currentShipIndex + 1
-      // console.log("nextShipIndex: ", nextShipIndex)
-      console.log("next ship to place: ", shipsToPlace[nextShipIndex])
-
-      // console.log("action letter:: ", letter)
-      // console.log("action number:: ", number)
-
-      const boardPlayer1Letters = Object.keys(state.boards.boardPlayer1)
-
-      const firstLetterIndex = boardPlayer1Letters.findIndex(
-        letterItem => letterItem === letter
-      )
-
-      // console.log("firstLetterIndex:: ", firstLetterIndex)
-      // console.log("boardPlayer1 keys:: ", boardPlayer1Letters)
-
-      const placeShipInCells = (firstLetterIndex, board) => {
-        const shipSize = shipsToPlace[currentShipIndex].size
-        const firstLetter = letters[firstLetterIndex]
-        // console.log("next letter:: ")
-
-        let obj = {}
-        for (let i = 0; i < shipSize; i++) {
-          obj = {
-            ...obj,
-            ...{
-              [i === 0 ? firstLetter : letters[firstLetterIndex + i]]: {
-                ...state.boards.boardPlayer1[letter],
-                [number]: {
-                  id: `${
-                    i === 0 ? firstLetter : letters[firstLetterIndex + i]
-                  }${number}`,
-                  shipType: shipId,
-                  status: "PLACED"
-                }
-              }
-            }
-          }
-
-          // console.log("partial obj: ", obj)
-        }
-
-        return obj
-      }
-
-      console.log("state.currentShipToPlace: ", state.currentShipToPlace)
-      console.log(
-        "new current ship: ",
-        isShipCompletelyPlaced || state.currentShipToPlace.id === "carrier"
-          ? shipsToPlace[nextShipIndex]
-          : state.currentShipToPlace
-      )
-
-      return {
-        ...state,
-        boards: {
-          ...state.boards,
-          boardPlayer1: {
-            ...state.boards.boardPlayer1,
-            ...placeShipInCells(firstLetterIndex, boardPlayer1)
-            // ...{
-            //   [letter]: {
-            //     ...state.boards.boardPlayer1[letter],
-            //     [number]: { id: null, shipType: shipId, status: "PLACED" }
-            //   },
-            //   [boardPlayer1Letters[firstLetterIndex + 1]]: {
-            //     ...state.boards.boardPlayer1[letter],
-            //     [number]: { id: null, shipType: shipId, status: "PLACED" }
-            //   }
-          }
-        },
-        currentShipToPlace:
-          isShipCompletelyPlaced || state.currentShipToPlace.id === "carrier"
-            ? shipsToPlace[nextShipIndex]
-            : state.currentShipToPlace
-      }*/
-      const { playerId, shipId, cellId } = action.payload
+      const { playerId, ship, cellId } = action.payload
       const player = state.players[playerId]
       const cell = splitCellId(cellId)
 
@@ -333,9 +272,8 @@ const reducer = (state = initialState, action) => {
         ships: [...player.ships, cellId]
       }
 
-      const updatedShip = player.ships.find(ship => ship.id === shipId.id)
+      const updatedShip = findShipById(player, ship.id)
       console.log("NEW ship: ", updatedShip)
-      // updatedShip.cells = [...updatedShip.cells, cellId]
 
       console.log("NEW updatedPlayerBoard: ", updatedPlayerBoard)
 
@@ -343,25 +281,45 @@ const reducer = (state = initialState, action) => {
         letterItem => letterItem === cell.letter
       )
 
-      const fillShipCells = (shipToFill, cellNumber) => {
-        const updatedShip = { ...shipToFill }
-
-        for (let i = 0; i < updatedShip.size; i++) {
-          updatedShip.cells = [
-            ...updatedShip.cells,
-            `${letters[firstLetterIndex + i]}${cellNumber}`
-          ]
-        }
-
-        return updatedShip
-      }
-
-      const updatedShipNew = fillShipCells(updatedShip, cell.number)
+      const updatedShipNew = fillShipCells(
+        updatedShip,
+        cell.number,
+        firstLetterIndex
+      )
 
       console.log("NEW SHIP UPDATED: ", updatedShipNew)
 
-      const isShipPlaced = isShipCompletelyPlaced(player.ships, shipId.id)
-      console.log("NEW isShipPlaced: ", isShipPlaced)
+      const playerShips = player.ships
+      const isShipPlaced = isShipCompletelyPlaced(playerShips, ship.id)
+      const currentShipIndex = findShipIndexInArray(ship.id)
+      const nextShipIndex = currentShipIndex + 1
+      const isInitialShip = state.currentShipToPlace.id === "carrier"
+
+      console.log(
+        "UPDATED RES: ",
+        updatedPlayerShips(playerShips, ship.id, updatedShipNew)
+      )
+      const updatedPlayer = {
+        ...state.players[playerId],
+        ships: updatedPlayerShips(playerShips, ship.id, updatedShipNew)
+      }
+
+      console.log("UPDATED currentShipToPlace: ", state.currentShipToPlace)
+      console.log("UPDATED SHIP: ", updatedShipNew)
+      console.log("UPDATED PLAYER: ", updatedPlayer)
+      console.log("UPDATED nextShipIndex: ", nextShipIndex)
+
+      return {
+        ...state,
+        players: {
+          ...state.players,
+          [playerId]: { ...state.players[playerId], ...updatedPlayer }
+        },
+        currentShipToPlace:
+          nextShipIndex < shipsToPlace.length + 1
+            ? shipsToPlace[nextShipIndex]
+            : null
+      }
 
     default:
       return state
