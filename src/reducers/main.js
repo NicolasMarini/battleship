@@ -10,7 +10,12 @@ import {
   getPaintedCells,
   getPaintedCellsByShip,
   splitCellId,
-  findShipById
+  findShipById,
+  addCellVertically,
+  isThereEnoughSpaceToPlaceShipVertically,
+  isThereEnoughSpaceToPlaceShipHorizontally,
+  isLastCellToTheRight,
+  isFirstCellToTheLeft
 } from "../utils/helpers"
 import { letters, numbers, shipsToPlace } from "../utils/constants"
 
@@ -268,7 +273,7 @@ const calculateAvailableCells = (player, ship, firstLetterIndex, cellId) => {
   console.log("ship::::", playerShip)
 
   // checks if the ship is on horizontal or vertical position
-  // 2 or more cells are needed as with only 1 cell there no position yet
+  // 2 or more cells are needed as with only 1 cell there's no position yet
   if (playerShip.cells.length > 1) {
     const isShipIsPlacedHorizontally =
       splitCellId(playerShip.cells[0]).number ===
@@ -299,43 +304,41 @@ const calculateAvailableCells = (player, ship, firstLetterIndex, cellId) => {
           letterIndexes
         )
         const maximumCellIdInPaintedCells = Math.max(...letterIndexes)
-
-        // for (let i = 1; i < ship.size; i++) {
-        // available to the right
-        availableCells.push(
-          addCellHorizontally(
-            letters,
-            getFirstLetterIndex(letters, letters[maximumCellIdInPaintedCells]),
-            cell,
-            "right"
-          )
+        const newCellToTheRight = addCellHorizontally(
+          letters,
+          getFirstLetterIndex(letters, letters[maximumCellIdInPaintedCells]),
+          cell,
+          "right"
         )
-        // }
 
-        // for (let i = 1; i < ship.size; i++) {
+        // only add the cell if this is not the last cell to the right
+        if (
+          maximumCellIdInPaintedCells < 9 &&
+          // only adds the cell if it's not already included
+          !availableCells.includes(newCellToTheRight)
+        ) {
+          availableCells.push(newCellToTheRight)
+        }
 
-        availableCells.push(
-          // `${letters[firstLetterIndex - 1]}${cell.number}`
-          addCellHorizontally(
-            letters,
-            getFirstLetterIndex(
+        // only add the cell if this is not the first cell to the left
+        if (firstHorizontalPaintedCellIndex > 0) {
+          availableCells.push(
+            addCellHorizontally(
               letters,
-              letters[firstHorizontalPaintedCellIndex]
-            ),
-            cell,
-            "left"
+              getFirstLetterIndex(
+                letters,
+                letters[firstHorizontalPaintedCellIndex]
+              ),
+              cell,
+              "left"
+            )
           )
-        ) // available to the left
-        // }
+        }
       } else {
         availableCells = []
       }
     } else if (isShipIsPlacedVertically) {
       if (playerShip.cells.length < playerShip.size) {
-        // const firstCellIdInShip = playerShip.cells[0]
-        // const letter = splitCellId(firstCellIdInShip).letter
-        // const lastCellIdInShip = playerShip.cells[playerShip.cells.length - 1]
-
         availableCells = removeHorizontalCells(availableCells, cellId, cell)
 
         availableCells = availableCells.filter(
@@ -346,24 +349,25 @@ const calculateAvailableCells = (player, ship, firstLetterIndex, cellId) => {
               splitCellId(lastCellIdInShip).number + 1
         )
 
-        const nextCell = availableCells.find(
-          cellId =>
-            cellId ===
-            `${splitCellId(lastCellIdInShip).letter}${
-              splitCellId(lastCellIdInShip).number + 1
-            }`
-        )
+        // const nextCell = availableCells.find(
+        //   cellId =>
+        //     cellId ===
+        //     `${splitCellId(lastCellIdInShip).letter}${
+        //       splitCellId(lastCellIdInShip).number + 1
+        //     }`
+        // )
 
-        if (!nextCell) {
-          availableCells = [
-            ...availableCells,
-            `${splitCellId(lastCellIdInShip).letter}${
-              splitCellId(lastCellIdInShip).number + 1
-            }`
-          ]
-        }
+        // if (nextCell !== undefined) {
+        //   availableCells = [
+        //     ...availableCells,
+        //     `${splitCellId(lastCellIdInShip).letter}${
+        //       splitCellId(lastCellIdInShip).number + 1
+        //     }`
+        //   ]
+        // }
 
-        // const pp = availableCells.map(cellId => splitCellId(cellId).number)
+        // console.log("vertical nextCell: ", nextCell)
+
         const paintedCells = getPaintedCellsByShip(player, playerShip.id)
         const paintedCellsNumbers = paintedCells.map(
           cellId => splitCellId(cellId).number
@@ -371,33 +375,27 @@ const calculateAvailableCells = (player, ship, firstLetterIndex, cellId) => {
         const minimumCellIdInPaintedCells = Math.min(...paintedCellsNumbers)
         const maximumCellIdInPaintedCells = Math.max(...paintedCellsNumbers)
 
-        const pp = paintedCells.map(cellId => splitCellId(cellId).number)
-
         const previousCellIdFromPaintedCells = `${letter}${
           minimumCellIdInPaintedCells - 1
         }`
 
-        const nextCellIdFromPaintedCells = `${letter}${
-          maximumCellIdInPaintedCells + 1
-        }`
+        if (maximumCellIdInPaintedCells < 10) {
+          const nextCellIdFromPaintedCells = `${letter}${
+            maximumCellIdInPaintedCells + 1
+          }`
 
-        availableCells = [
-          ...availableCells,
-          previousCellIdFromPaintedCells,
-          nextCellIdFromPaintedCells
-        ]
+          availableCells = [
+            previousCellIdFromPaintedCells,
+            nextCellIdFromPaintedCells
+          ]
+        } else if (!availableCells.includes(previousCellIdFromPaintedCells)) {
+          availableCells = [previousCellIdFromPaintedCells]
+        }
 
         console.log(
           "vertical previousCellIdFromPaintedCells: ",
           previousCellIdFromPaintedCells
         )
-
-        console.log(
-          "vertical nextCellIdFromPaintedCells: ",
-          nextCellIdFromPaintedCells
-        )
-
-        console.log("vertical numbers: ", pp)
 
         console.log(
           "vertical minimumCellIdInPaintedCells: ",
@@ -407,10 +405,7 @@ const calculateAvailableCells = (player, ship, firstLetterIndex, cellId) => {
           "vertical maximumCellIdInPaintedCells: ",
           maximumCellIdInPaintedCells
         )
-        console.log("vertical numbers: ", pp)
-        console.log("vertical min number: ", Math.min(...pp))
-        console.log("vertical max number: ", Math.max(...pp))
-        console.log("vertical nextCell: ", nextCell)
+
         console.log("vertical first cell id: ", firstCellIdInShip)
         console.log("vertical last cell id: ", lastCellIdInShip)
         console.log("vertical painted cells: ", getPaintedCells(player))
@@ -424,94 +419,106 @@ const calculateAvailableCells = (player, ship, firstLetterIndex, cellId) => {
       letterItem => letterItem === cell.letter
     )
 
-    if ((isValidCellLetter(letters[firstLetterIndex + 1]), cell.letter)) {
-      // available to the right
-      availableCells.push(`${letters[firstLetterIndex + 1]}${cell.number}`)
+    const isTheLastCellToTheRight = isLastCellToTheRight(firstLetterIndex)
+    const isTheFirstCellToTheLeft = isFirstCellToTheLeft(firstLetterIndex)
+
+    if (!isTheLastCellToTheRight) {
+      if ((isValidCellLetter(letters[firstLetterIndex + 1]), cell.letter)) {
+        // available to the right
+        availableCells.push(
+          addCellHorizontally(letters, firstLetterIndex, cell, "right")
+        )
+      }
     }
 
-    if ((isValidCellLetter(letters[firstLetterIndex - 1]), cell.letter)) {
-      // available to the left
-      availableCells.push(`${letters[firstLetterIndex - 1]}${cell.number}`)
+    if (!isTheFirstCellToTheLeft) {
+      if ((isValidCellLetter(letters[firstLetterIndex - 1]), cell.letter)) {
+        // available to the left
+        availableCells.push(
+          addCellHorizontally(letters, firstLetterIndex, cell, "left")
+        )
+      }
     }
 
     if (isValidCellNumber(cell.number - 1)) {
       // available to the top
-      availableCells.push(`${letters[firstLetterIndex]}${cell.number - 1}`)
+      availableCells.push(
+        addCellVertically(letters, firstLetterIndex, cell, "top")
+      )
     }
 
     if (isValidCellNumber(cell.number + 1)) {
       // available to the bottom
-      availableCells.push(`${letters[firstLetterIndex]}${cell.number + 1}`)
+      availableCells.push(
+        addCellVertically(letters, firstLetterIndex, cell, "bottom")
+      )
     }
   }
 
-  console.log("available cells: ", availableCells)
   return availableCells
 }
 
-// checks if there are enough cells to the bottom or to the top to place a ship
-const isThereEnoughSpaceToPlaceShipVertically = (
-  player,
-  shipId,
-  cellIdToAdd,
-  direction // top or bottom
-) => {
-  const { size: shipSize } = findShipById(player, shipId)
-  const { letter: cellLetter, number: cellNumber } = splitCellId(cellIdToAdd)
-
-  let counter = 0
-
-  // if (direction === "bottom") {
-  const allPaintedCells = getPaintedCells(player, shipId)
-
-  for (let i = 1; i <= shipSize - 1; i++) {
-    const cellNumberValue =
-      direction === "bottom" ? cellNumber + i : cellNumber - i
-
-    // checks that the cells to the bottom are valid and available
-    if (
-      !allPaintedCells.includes(`${cellLetter}${cellNumberValue}`) &&
-      isValidCellNumber(cellNumberValue)
-    ) {
-      counter += 1
-    }
-  }
-  // } else {
-  //   for (let i = 1; i <= shipSize - 1; i++) {
-  //     // checks that the cells to the top are valid and available
-  //     if (
-  //       !allPaintedCells.includes(`${cellLetter}${cellNumberValue}`) &&
-  //       isValidCellNumber(cellNumberValue)
-  //     ) {
-  //       counter += 1
-  //     }
-  //   }
-  // }
-
-  return counter === shipSize - 1
-}
-
 const reducer = (state = initialState, action) => {
-  // console.log("action: ", action)
   switch (action.type) {
     case "PLACE_SHIP":
       const { playerId, ship, cellId } = action.payload
       const player = state.players[playerId]
       const cell = splitCellId(cellId)
 
+      const isThereEnoughSpaceToTheBottom = isThereEnoughSpaceToPlaceShipVertically(
+        player,
+        ship.id,
+        cellId,
+        "bottom"
+      )
+
+      const isThereEnoughSpaceToTheTop = isThereEnoughSpaceToPlaceShipVertically(
+        player,
+        ship.id,
+        cellId,
+        "top"
+      )
+
+      const isThereEnoughSpaceToTheLeft = isThereEnoughSpaceToPlaceShipHorizontally(
+        player,
+        ship.id,
+        cellId,
+        "left"
+      )
+
+      const isThereEnoughSpaceToTheRight = isThereEnoughSpaceToPlaceShipHorizontally(
+        player,
+        ship.id,
+        cellId,
+        "right"
+      )
+
+      const noAvailableDirections =
+        !isThereEnoughSpaceToTheTop &&
+        !isThereEnoughSpaceToTheTop &&
+        !isThereEnoughSpaceToTheLeft &&
+        !isThereEnoughSpaceToTheRight
+
+      if (noAvailableDirections) return state
+
       console.log(
-        "BOTTOM isThereEnoughSpaceToPlaceShipVertically: ",
-        isThereEnoughSpaceToPlaceShipVertically(
-          player,
-          ship.id,
-          cellId,
-          "bottom"
-        )
+        "BOTTOM isThereEnoughSpaceToPlaceShip: ",
+        isThereEnoughSpaceToTheBottom
       )
 
       console.log(
-        "TOP isThereEnoughSpaceToPlaceShipVertically: ",
-        isThereEnoughSpaceToPlaceShipVertically(player, ship.id, cellId, "top")
+        "TOP isThereEnoughSpaceToPlaceShip: ",
+        isThereEnoughSpaceToTheTop
+      )
+
+      console.log(
+        "LEFT isThereEnoughSpaceToPlaceShip: ",
+        isThereEnoughSpaceToTheLeft
+      )
+
+      console.log(
+        "RIGHT isThereEnoughSpaceToPlaceShip: ",
+        isThereEnoughSpaceToTheRight
       )
 
       const firstLetterIndex = letters.findIndex(
