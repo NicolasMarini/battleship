@@ -143,3 +143,9 @@ export const isLastCellToTheRight = firstLetterIndex =>
   firstLetterIndex + 1 === 10
 
 export const isFirstCellToTheLeft = firstLetterIndex => firstLetterIndex === 0
+
+export const removeHorizontalCells = (availableCells, cell) =>
+  availableCells.filter(cellId => splitCellId(cellId).letter === cell.letter)
+
+export const removeVerticalCells = (availableCells, cell) =>
+  availableCells.filter(cellId => splitCellId(cellId).number === cell.number)

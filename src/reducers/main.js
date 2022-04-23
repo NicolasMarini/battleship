@@ -10,6 +10,8 @@ import {
   getPaintedCells,
   getPaintedCellsByShip,
   splitCellId,
+  removeHorizontalCells,
+  removeVerticalCells,
   findShipById,
   addCellVertically,
   isThereEnoughSpaceToPlaceShipVertically,
@@ -258,13 +260,6 @@ const removeCellsToTheRight = (availableCells, letter, cell) => {
   return a
 }
 
-const removeHorizontalCells = (availableCells, cellId, cell) =>
-  availableCells.filter(
-    cellId =>
-      // splitCellId(cellId).number !== cell.number ||
-      splitCellId(cellId).letter === cell.letter
-  )
-
 const calculateAvailableCells = (player, ship, firstLetterIndex, cellId) => {
   const cell = splitCellId(cellId)
   let availableCells = [...player.availableCells]
@@ -293,6 +288,8 @@ const calculateAvailableCells = (player, ship, firstLetterIndex, cellId) => {
     if (isShipIsPlacedHorizontally) {
       console.log("PLAYER SHIP: ", playerShip)
       if (playerShip.cells.length < playerShip.size) {
+        availableCells = removeVerticalCells(availableCells, cell)
+
         const paintedCells = getPaintedCellsByShip(player, playerShip.id)
         const paintedCellsLetters = paintedCells.map(
           cellId => splitCellId(cellId).letter
@@ -311,6 +308,7 @@ const calculateAvailableCells = (player, ship, firstLetterIndex, cellId) => {
           "right"
         )
 
+        availableCells = []
         // only add the cell if this is not the last cell to the right
         if (
           maximumCellIdInPaintedCells < 9 &&
@@ -339,7 +337,7 @@ const calculateAvailableCells = (player, ship, firstLetterIndex, cellId) => {
       }
     } else if (isShipIsPlacedVertically) {
       if (playerShip.cells.length < playerShip.size) {
-        availableCells = removeHorizontalCells(availableCells, cellId, cell)
+        availableCells = removeHorizontalCells(availableCells, cell)
 
         availableCells = availableCells.filter(
           cellId =>
