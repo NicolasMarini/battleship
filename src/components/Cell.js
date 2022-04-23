@@ -1,7 +1,7 @@
 import React, { useEffect } from "react"
 import { useDispatch, useSelector } from "react-redux"
 import { placeShip } from "../actions/actions"
-import { getPaintedCells, findShipById } from "../reducers/main"
+import { getPaintedCells } from "../utils/helpers"
 
 const Cell = ({ playerId, id, letter, number, cellId }) => {
   // console.log("data: ", data)

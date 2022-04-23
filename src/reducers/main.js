@@ -1,10 +1,18 @@
 import shipTypes from "../enums/shipTypes"
 import shipIds from "../enums/shipIds"
-
-const letters = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]
-const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-// const letters = ["a", "b", "c", "d"]
-// const numbers = [1, 2, 3, 4]
+import {
+  addCellHorizontally,
+  getFirstCellIdFromPaintedCells,
+  isValidCellLetter,
+  isValidCellNumber,
+  findShipIndexInArray,
+  getBoardKeys,
+  getPaintedCells,
+  getPaintedCellsByShip,
+  splitCellId,
+  findShipById
+} from "../utils/helpers"
+import { letters, numbers, shipsToPlace } from "../utils/constants"
 
 const generateRow = (letter, numbers) => {
   let row = { [letter]: {} }
@@ -41,14 +49,6 @@ const generateBoardStructure = (letters, numbers) => {
 const boardPlayer1 = generateBoardStructure(letters, numbers)
 const boardCPU = generateBoardStructure(letters, numbers)
 
-const shipsToPlace = [
-  { id: shipIds.carrier, size: 4 },
-  { id: shipIds.cruiser1, size: 3 },
-  { id: shipIds.cruiser2, size: 3 },
-  { id: shipIds.cruiser3, size: 3 },
-  { id: shipIds.submarine, size: 2 }
-]
-
 const gamePlayers = {
   player1: {
     id: "player1",
@@ -79,42 +79,6 @@ const initialState = {
   players: gamePlayers,
   currentShipToPlace: gamePlayers["player1"]["ships"][[0]],
   boards: { boardPlayer1, boardCPU }
-}
-
-export const getBoardKeys = board => {
-  return Object.keys(board)
-}
-
-export const getBoardEntries = board => {
-  return Object.entries(board)
-}
-
-export const getPaintedCells = player => {
-  // const boardLetters = getBoardKeys(board)
-
-  const { ships } = player
-  let paintedCells = []
-  ships.forEach(ship => {
-    if (ship.cells.length > 0) {
-      paintedCells = [...paintedCells, ...ship.cells]
-    }
-  })
-
-  return paintedCells
-}
-
-export const getPaintedCellsByShip = (player, shipId) => {
-  // const boardLetters = getBoardKeys(board)
-
-  const { ships } = player
-  let paintedCells = []
-  ships.forEach(ship => {
-    if (ship.id === shipId && ship.cells.length > 0) {
-      paintedCells = [...paintedCells, ...ship.cells]
-    }
-  })
-
-  return paintedCells
 }
 
 /*
@@ -205,25 +169,6 @@ export const countAppearancesOfAShipOnTheBoard = (board, shipId) => {
 }
 */
 
-const findShipIndexInArray = currentShipId =>
-  shipsToPlace.findIndex(ship => ship.id === currentShipId)
-
-const splitCellId = cellId => {
-  const cellIdAsArray = [...cellId]
-
-  console.log("cell obj: ", {
-    letter: cellIdAsArray[0],
-    number: cellId.substr(1, cellId.length - 1)
-  })
-  return {
-    letter: cellIdAsArray[0],
-    number: Number(cellId.substr(1, cellId.length - 1))
-  }
-}
-
-export const findShipById = (player, shipId) =>
-  player.ships.find(shipItem => shipItem.id === shipId)
-
 // function that receives the current list of ships from state (for a specific player)
 // and updates that list with the new ship placed in the board
 const updatedPlayerShips = (playerShips, shipId, updatedShipNew) => {
@@ -290,9 +235,22 @@ const fillShipCells = (shipToFill, cellNumber, firstLetterIndex) => {
 const verifyEnoughSpaceToPlaceShip = player => {
   const paintedCells = getPaintedCells(player)
 
-  // CHEQUEAR QUE HAYA LUGAR PARA PONER EL BARCO Y QUE LAS CELDAS ESTEN LIBRES
-
   console.log("verifyEnoughSpaceToPlaceShip painted cells: ", paintedCells)
+}
+
+const getFirstLetterIndex = (letters, letter) =>
+  letters.findIndex(letterItem => letterItem === letter)
+
+const removeCellsToTheRight = (availableCells, letter, cell) => {
+  getFirstLetterIndex(letters, letter)
+  const cellsWithSameLetter = availableCells.filter(
+    cellId => splitCellId(cellId).letter === cell.letter
+  )
+  const a = cellsWithSameLetter.filter(
+    cellId => splitCellId(cellId).number <= splitCellId(cell.id).number
+  )
+
+  return a
 }
 
 const removeHorizontalCells = (availableCells, cellId, cell) =>
@@ -323,20 +281,62 @@ const calculateAvailableCells = (player, ship, firstLetterIndex, cellId) => {
     console.log("esta en la misma fila: ", isShipIsPlacedHorizontally)
     console.log("esta en la misma columna: ", isShipIsPlacedVertically)
 
-    if (isShipIsPlacedHorizontally) {
-      for (let i = 1; i < ship.size; i++) {
-        availableCells.push(`${letters[firstLetterIndex + i]}${cell.number}`) // available to the right
-      }
+    const firstCellIdInShip = playerShip.cells[0]
+    const letter = splitCellId(firstCellIdInShip).letter
+    const lastCellIdInShip = playerShip.cells[playerShip.cells.length - 1]
 
-      for (let i = 1; i < ship.size; i++) {
-        availableCells.push(`${letters[firstLetterIndex - i]}${cell.number}`) // available to the left
+    if (isShipIsPlacedHorizontally) {
+      console.log("PLAYER SHIP: ", playerShip)
+      if (playerShip.cells.length < playerShip.size) {
+        const paintedCells = getPaintedCellsByShip(player, playerShip.id)
+        const paintedCellsLetters = paintedCells.map(
+          cellId => splitCellId(cellId).letter
+        )
+        const letterIndexes = paintedCellsLetters.map(cellLetter =>
+          getFirstLetterIndex(letters, cellLetter)
+        )
+        const firstHorizontalPaintedCellIndex = getFirstCellIdFromPaintedCells(
+          letterIndexes
+        )
+        const maximumCellIdInPaintedCells = Math.max(...letterIndexes)
+
+        // for (let i = 1; i < ship.size; i++) {
+        // available to the right
+        availableCells.push(
+          addCellHorizontally(
+            letters,
+            getFirstLetterIndex(letters, letters[maximumCellIdInPaintedCells]),
+            cell,
+            "right"
+          )
+        )
+        // }
+
+        // for (let i = 1; i < ship.size; i++) {
+
+        availableCells.push(
+          // `${letters[firstLetterIndex - 1]}${cell.number}`
+          addCellHorizontally(
+            letters,
+            getFirstLetterIndex(
+              letters,
+              letters[firstHorizontalPaintedCellIndex]
+            ),
+            cell,
+            "left"
+          )
+        ) // available to the left
+        // }
+      } else {
+        availableCells = []
       }
     } else if (isShipIsPlacedVertically) {
       if (playerShip.cells.length < playerShip.size) {
+        // const firstCellIdInShip = playerShip.cells[0]
+        // const letter = splitCellId(firstCellIdInShip).letter
+        // const lastCellIdInShip = playerShip.cells[playerShip.cells.length - 1]
+
         availableCells = removeHorizontalCells(availableCells, cellId, cell)
-        const firstCellIdInShip = playerShip.cells[0]
-        const letter = splitCellId(firstCellIdInShip).letter
-        const lastCellIdInShip = playerShip.cells[playerShip.cells.length - 1]
 
         availableCells = availableCells.filter(
           cellId =>
@@ -420,25 +420,75 @@ const calculateAvailableCells = (player, ship, firstLetterIndex, cellId) => {
       }
     }
   } else {
-    for (let i = 1; i < ship.size; i++) {
-      availableCells.push(`${letters[firstLetterIndex + i]}${cell.number}`) // available to the right
+    const firstLetterIndex = letters.findIndex(
+      letterItem => letterItem === cell.letter
+    )
+
+    if ((isValidCellLetter(letters[firstLetterIndex + 1]), cell.letter)) {
+      // available to the right
+      availableCells.push(`${letters[firstLetterIndex + 1]}${cell.number}`)
     }
 
-    for (let i = 1; i < ship.size; i++) {
-      availableCells.push(`${letters[firstLetterIndex - i]}${cell.number}`) // available to the left
+    if ((isValidCellLetter(letters[firstLetterIndex - 1]), cell.letter)) {
+      // available to the left
+      availableCells.push(`${letters[firstLetterIndex - 1]}${cell.number}`)
     }
 
-    for (let i = 1; i < ship.size; i++) {
-      availableCells.push(`${letters[firstLetterIndex]}${cell.number - i}`) // available to the top
+    if (isValidCellNumber(cell.number - 1)) {
+      // available to the top
+      availableCells.push(`${letters[firstLetterIndex]}${cell.number - 1}`)
     }
 
-    for (let i = 1; i < ship.size; i++) {
-      availableCells.push(`${letters[firstLetterIndex]}${cell.number + i}`) // available to the bottom
+    if (isValidCellNumber(cell.number + 1)) {
+      // available to the bottom
+      availableCells.push(`${letters[firstLetterIndex]}${cell.number + 1}`)
     }
   }
 
   console.log("available cells: ", availableCells)
   return availableCells
+}
+
+// checks if there are enough cells to the bottom or to the top to place a ship
+const isThereEnoughSpaceToPlaceShipVertically = (
+  player,
+  shipId,
+  cellIdToAdd,
+  direction // top or bottom
+) => {
+  const { size: shipSize } = findShipById(player, shipId)
+  const { letter: cellLetter, number: cellNumber } = splitCellId(cellIdToAdd)
+
+  let counter = 0
+
+  // if (direction === "bottom") {
+  const allPaintedCells = getPaintedCells(player, shipId)
+
+  for (let i = 1; i <= shipSize - 1; i++) {
+    const cellNumberValue =
+      direction === "bottom" ? cellNumber + i : cellNumber - i
+
+    // checks that the cells to the bottom are valid and available
+    if (
+      !allPaintedCells.includes(`${cellLetter}${cellNumberValue}`) &&
+      isValidCellNumber(cellNumberValue)
+    ) {
+      counter += 1
+    }
+  }
+  // } else {
+  //   for (let i = 1; i <= shipSize - 1; i++) {
+  //     // checks that the cells to the top are valid and available
+  //     if (
+  //       !allPaintedCells.includes(`${cellLetter}${cellNumberValue}`) &&
+  //       isValidCellNumber(cellNumberValue)
+  //     ) {
+  //       counter += 1
+  //     }
+  //   }
+  // }
+
+  return counter === shipSize - 1
 }
 
 const reducer = (state = initialState, action) => {
@@ -448,6 +498,21 @@ const reducer = (state = initialState, action) => {
       const { playerId, ship, cellId } = action.payload
       const player = state.players[playerId]
       const cell = splitCellId(cellId)
+
+      console.log(
+        "BOTTOM isThereEnoughSpaceToPlaceShipVertically: ",
+        isThereEnoughSpaceToPlaceShipVertically(
+          player,
+          ship.id,
+          cellId,
+          "bottom"
+        )
+      )
+
+      console.log(
+        "TOP isThereEnoughSpaceToPlaceShipVertically: ",
+        isThereEnoughSpaceToPlaceShipVertically(player, ship.id, cellId, "top")
+      )
 
       const firstLetterIndex = letters.findIndex(
         letterItem => letterItem === cell.letter
