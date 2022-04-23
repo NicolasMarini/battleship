@@ -10,6 +10,7 @@ const Cell = ({ playerId, id, letter, number, cellId }) => {
   const currentShipToPlace = useSelector(state => state.currentShipToPlace)
   // const board = useSelector(state => state.boards.boardPlayer1)
   const player = useSelector(state => state.players[playerId])
+  const { availableCells } = player
 
   const shouldPaintCell = player => {
     // if (getPaintedCells(_board) === 0) return false
@@ -22,13 +23,16 @@ const Cell = ({ playerId, id, letter, number, cellId }) => {
     // return Boolean(cells.find(cell => cell === `${letter}${number}`))
   }
 
+  console.log("currentShipToPlace: ", currentShipToPlace)
+
   return (
-    <div
+    <button
+      disabled={!availableCells.includes(cellId) && availableCells.length > 0}
       style={{
         display: "inline-block",
         border: "1px solid black",
-        width: 25,
-        height: 25,
+        width: 30,
+        height: 30,
         backgroundColor: getPaintedCells(player).includes(cellId)
           ? "grey"
           : "#fff"
@@ -47,7 +51,8 @@ const Cell = ({ playerId, id, letter, number, cellId }) => {
       }
     >
       {`${letter}${number}`}
-    </div>
+      {/* <button onClick={() => alert("rotating...")}>Rotate</button> */}
+    </button>
   )
 }
 
