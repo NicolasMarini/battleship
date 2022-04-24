@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux"
 import { placeShip } from "../actions/actions"
 import { getPaintedCells } from "../utils/helpers"
 
-const Cell = ({ playerId, id, letter, number, cellId }) => {
+const Cell = ({ playerId, id, letter, number }) => {
   // console.log("data: ", data)
   // console.log("id: ", id)
   const dispatch = useDispatch()
@@ -24,29 +24,30 @@ const Cell = ({ playerId, id, letter, number, cellId }) => {
   }
 
   console.log("currentShipToPlace: ", currentShipToPlace)
+  console.log("currentPlayer: ", player)
 
   return (
     <button
-      disabled={!availableCells.includes(cellId) && availableCells.length > 0}
+      disabled={!availableCells.includes(id) && availableCells.length > 0}
       style={{
         display: "inline-block",
         border: "1px solid black",
         width: 30,
         height: 30,
-        backgroundColor: getPaintedCells(player).includes(cellId)
-          ? "grey"
-          : "#fff"
+        backgroundColor: getPaintedCells(player).includes(id) ? "grey" : "#fff"
       }}
       onClick={() =>
-        // dispatch(placeShip({ shipId: currentShipToPlace, letter, number }))
         dispatch(
-          placeShip({
-            playerId: "player1",
-            ship: currentShipToPlace,
-            cellId
-            // letter,
-            // number
-          })
+          player.boardCreationAction
+          // placeShip({
+          //   playerId,
+          //   ship: currentShipToPlace,
+          //   cell: {
+          //     id,
+          //     letter,
+          //     number
+          //   }
+          // })
         )
       }
     >

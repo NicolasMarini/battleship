@@ -11,3 +11,9 @@ export const placeShip = cellData => {
     payload: cellData
   }
 }
+
+export const generateRandomBoard = () => {
+  return {
+    type: "GENERATE_RANDOM_BOARD"
+  }
+}

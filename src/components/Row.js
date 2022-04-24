@@ -7,12 +7,14 @@ const Row = ({ playerId, number, letters, selectedShip }) => {
   return (
     <>
       {Object.keys(letters).map(key => {
-        console.log("letter: ", letters[key])
+        const letter = letters[key]
+
+        console.log("ROW letter: ", letter)
         return (
           <Cell
             playerId={playerId}
-            cellId={`${letters[key]}${number}`}
-            letter={letters[key]}
+            id={`${letter}${number}`}
+            letter={letter}
             number={number}
           />
         )
