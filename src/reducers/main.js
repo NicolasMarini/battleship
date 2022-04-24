@@ -428,8 +428,6 @@ const reducer = (state = initialState, action) => {
       const currentShipIndex = findShipIndexInArray(ship.id)
       const nextShipIndex = currentShipIndex + 1
 
-      console.log("reduce player: ", player)
-
       const updatedPlayerShips = addCellToShip(playerShips, ship.id, cellId)
 
       playerShips.push(cellId)
@@ -452,16 +450,7 @@ const reducer = (state = initialState, action) => {
 
       const updatedShip = findShipById(updatedPlayer, ship.id)
 
-      console.log("updated updatedShip: ", updatedShip)
       console.log("updated Player: ", updatedPlayer)
-
-      const pruebaShip =
-        nextShipIndex < shipsToPlace.length + 1 &&
-        updatedShip.cells.length === updatedShip.size
-          ? shipsToPlace[nextShipIndex]
-          : "state.currentShipToPlace"
-
-      console.log("pruebaShip: ", pruebaShip)
 
       return {
         ...state,
