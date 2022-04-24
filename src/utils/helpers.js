@@ -22,22 +22,12 @@ export const addCellHorizontally = (
     ? `${letters[firstLetterIndex - 1]}${cellNumber}`
     : `${letters[firstLetterIndex + 1]}${cellNumber}`
 
-export const addCellVertically = (
-  letters,
-  firstLetterIndex,
-  cellNumber,
-  direction
-) =>
-  direction === "top"
-    ? `${letters[firstLetterIndex]}${cellNumber - 1}`
-    : `${letters[firstLetterIndex]}${cellNumber + 1}`
-
-export const addOneCellInAllDirections = (letters, firstLetterIndex, cell) => [
-  addCellHorizontally(letters, firstLetterIndex, cell, "right"),
-  addCellHorizontally(letters, firstLetterIndex, cell, "left"),
-  addCellVertically(letters, firstLetterIndex, cell, "top"),
-  addCellVertically(letters, firstLetterIndex, cell, "bottom")
-]
+// export const addOneCellInAllDirections = (letters, firstLetterIndex, cell) => [
+//   addCellHorizontally(letters, firstLetterIndex, cell, "right"),
+//   addCellHorizontally(letters, firstLetterIndex, cell, "left"),
+//   addCellVertically(letters, firstLetterIndex, cell, "top"),
+//   addCellVertically(letters, firstLetterIndex, cell, "bottom")
+// ]
 
 // receives an array with all the horizontal painted cells
 // and returns the index of the letter that is furthest to the left
@@ -127,12 +117,9 @@ export const isThereEnoughSpaceToPlaceShipVertically = (
 }
 
 export const isThereEnoughSpaceToPlaceShipHorizontally = (
-  player,
-  shipId,
   cellIdToAdd,
   direction // left or right
 ) => {
-  const { size: shipSize } = findShipById(player, shipId)
   const { letter: cellLetter } = cellIdToCellObject(cellIdToAdd)
 
   const letterIndexInLetters = letters.findIndex(
@@ -143,10 +130,7 @@ export const isThereEnoughSpaceToPlaceShipHorizontally = (
     return letterIndexInLetters > 0
   }
 
-  return (
-    letterIndexInLetters + shipSize <= 10 &&
-    10 - letterIndexInLetters >= shipSize
-  )
+  return letterIndexInLetters < 10
 }
 
 export const isLastCellToTheRight = firstLetterIndex =>
@@ -168,13 +152,11 @@ export const shipHasMoreThanOneCell = ship => ship.cells.length > 1
 
 // if a ship has two cells with the same number that means that the ship is palced horizontally
 export const isShipIsPlacedHorizontally = ship =>
-  cellIdToCellObject(ship.cells[0]).number ===
-  cellIdToCellObject(ship.cells[1]).number
+  ship.cells[0].number === ship.cells[1].number
 
 // if a ship has two cells with the same letter that means that the ship is placed vertically
 export const isShipIsPlacedVertically = ship =>
-  cellIdToCellObject(ship.cells[0]).letter ===
-  cellIdToCellObject(ship.cells[1]).letter
+  ship.cells[0].letter === ship.cells[1].letter
 
 export const isShipCompletelyPlaced = ship => ship.cells.length === ship.size
 
@@ -182,14 +164,72 @@ export const isShipCompletelyPlaced = ship => ship.cells.length === ship.size
 export const getPaintedCellsLetters = (player, shipId) => {
   const paintedCells = getPaintedCellsByShip(player, shipId)
 
-  return paintedCells.map(cellId => cellIdToCellObject(cellId).letter)
+  return paintedCells.map(cell => cell.letter)
 }
 
 // returns the indexes from letters for a ship's cells
 export const getLetterIndexes = shipCellsLetter =>
   shipCellsLetter.map(cellLetter => getFirstLetterIndex(letters, cellLetter))
 
+export const addCellToShip = (ships, shipId, cellId) =>
+  ships.map(shipItem => {
+    console.log("reduce ship: ", shipItem)
+    if (shipId === shipItem.id) {
+      return {
+        ...shipItem,
+        cells: [
+          ...shipItem.cells,
+          {
+            id: cellId,
+            letter: cellIdToCellObject(cellId).letter,
+            number: cellIdToCellObject(cellId).number,
+            status: null
+          }
+        ]
+      }
+    }
+
+    return shipItem
+  })
+
 // HORIZONTAL SHIP
+
+export const getAvailableCellsHorizontally = (
+  availableCells,
+  cell,
+  player,
+  ship
+) => {
+  availableCells = removeVerticalCells(availableCells, cell.number)
+  const shipCellsLetter = getPaintedCellsLetters(player, ship.id)
+  const letterIndexes = getLetterIndexes(shipCellsLetter)
+
+  const firstHorizontalPaintedCellIndex = getFirstCellIdFromPaintedCells(
+    letterIndexes
+  )
+
+  availableCells = []
+
+  const nextCellToTheRight = getNextCellToTheRight(cell.number, letterIndexes)
+  // only add the cell if this is not the last cell to the right
+  if (
+    !isTheLastCellToTheRight(letterIndexes) &&
+    // only adds the cell if it's not already included
+    !availableCells.includes(nextCellToTheRight)
+  ) {
+    availableCells.push(nextCellToTheRight)
+  }
+
+  // only add the cell if this is not the first cell to the left
+  if (firstHorizontalPaintedCellIndex > 0) {
+    availableCells.push(
+      getNextCellToTheLeft(cell.number, firstHorizontalPaintedCellIndex)
+    )
+  }
+
+  return availableCells
+}
+
 export const getGreatestLetterIndex = letterIndexes =>
   Math.max(...letterIndexes)
 
@@ -227,19 +267,85 @@ export const getNextCellToTheLeft = (
   )
 
 // VERTICAL SHIP
-export const getFirstCellToTheTop = (player, shipId) => {
-  const paintedCells = getPaintedCellsByShip(player, shipId)
-  const paintedCellsNumbers = paintedCells.map(
-    cellId => cellIdToCellObject(cellId).number
+export const cellIsAtTheTopEdge = cellNumber => cellNumber === 1
+export const cellIsAtTheBottomEdge = cellNumber => cellNumber === 10
+
+export const getAvailableCellsVertically = (
+  availableCells,
+  cell,
+  player,
+  ship,
+  firstLetterIndex
+) => {
+  availableCells = removeHorizontalCells(availableCells, cell)
+  const firstCellToTheTop = getFirstCellToTheTop(player, ship.id)
+  const lastCellToTheBottom = getLastCellToTheBottom(player, ship.id)
+
+  const previousVerticalCellId = addCellVertically(
+    letters,
+    firstLetterIndex,
+    firstCellToTheTop,
+    "top"
   )
-  return Math.min(...paintedCellsNumbers)
+
+  if (previousVerticalCellId !== null) {
+    availableCells = [previousVerticalCellId]
+  } else {
+    availableCells = []
+  }
+
+  const NextVerticalCellId = addCellVertically(
+    letters,
+    firstLetterIndex,
+    lastCellToTheBottom,
+    "bottom"
+  )
+
+  if (NextVerticalCellId !== null) {
+    availableCells = [...availableCells, NextVerticalCellId]
+  }
+
+  return availableCells
+}
+
+export const addCellVertically = (
+  letters,
+  firstLetterIndex,
+  cellNumber,
+  direction
+) => {
+  if (direction === "top") {
+    if (!cellIsAtTheTopEdge(cellNumber)) {
+      return `${letters[firstLetterIndex]}${cellNumber - 1}`
+    }
+    return null
+  }
+
+  if (!cellIsAtTheBottomEdge(cellNumber)) {
+    return `${letters[firstLetterIndex]}${cellNumber + 1}`
+  }
+  return null
+}
+
+// direction === "top"
+//   ? `${letters[firstLetterIndex]}${cellNumber - 1}`
+// : `${letters[firstLetterIndex]}${cellNumber + 1}`
+
+export const getFirstCellToTheTop = (player, shipId) => {
+  const cells = getPaintedCellsByShip(player, shipId)
+
+  return Math.min(...cells.map(cell => cell.number))
+
+  // const paintedCells = getPaintedCellsByShip(player, shipId)
+  // const paintedCellsNumbers = paintedCells.map(cell => cell.number)
+
+  // return Math.max(...paintedCellsNumbers)
 }
 
 export const getLastCellToTheBottom = (player, shipId) => {
   const paintedCells = getPaintedCellsByShip(player, shipId)
-  const paintedCellsNumbers = paintedCells.map(
-    cellId => cellIdToCellObject(cellId).number
-  )
+  const paintedCellsNumbers = paintedCells.map(cell => cell.number)
+
   return Math.max(...paintedCellsNumbers)
 }
 
@@ -263,3 +369,12 @@ export const buildRandomShip = shipSize => {
   console.log("randomLetter: ", randomLetter)
   console.log("randomOrientation: ", randomOrientation)
 }
+
+// GAME FUNCTIONS
+export const shipWasHit = (player, cell) => {
+  const { ships: playerShips } = player
+
+  return playerShips.some(ship => ship.cells.includes(cell.id))
+}
+
+// export const setHitStatusTo
