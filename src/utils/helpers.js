@@ -1,4 +1,4 @@
-import { shipsToPlace, letters } from "./constants"
+import { shipsToPlace, letters, orientations } from "./constants"
 
 export const getBoardKeys = board => {
   return Object.keys(board)
@@ -15,17 +15,22 @@ export const isValidCellLetter = (letters, cellLetter) =>
 export const addCellHorizontally = (
   letters,
   firstLetterIndex,
-  cell,
+  cellNumber,
   direction
 ) =>
   direction === "left"
-    ? `${letters[firstLetterIndex - 1]}${cell.number}`
-    : `${letters[firstLetterIndex + 1]}${cell.number}`
+    ? `${letters[firstLetterIndex - 1]}${cellNumber}`
+    : `${letters[firstLetterIndex + 1]}${cellNumber}`
 
-export const addCellVertically = (letters, firstLetterIndex, cell, direction) =>
+export const addCellVertically = (
+  letters,
+  firstLetterIndex,
+  cellNumber,
+  direction
+) =>
   direction === "top"
-    ? `${letters[firstLetterIndex]}${cell.number - 1}`
-    : `${letters[firstLetterIndex]}${cell.number + 1}`
+    ? `${letters[firstLetterIndex]}${cellNumber - 1}`
+    : `${letters[firstLetterIndex]}${cellNumber + 1}`
 
 export const addOneCellInAllDirections = (letters, firstLetterIndex, cell) => [
   addCellHorizontally(letters, firstLetterIndex, cell, "right"),
@@ -66,7 +71,7 @@ export const getPaintedCellsByShip = (player, shipId) => {
 export const findShipIndexInArray = currentShipId =>
   shipsToPlace.findIndex(ship => ship.id === currentShipId)
 
-export const splitCellId = cellId => {
+export const cellIdToCellObject = cellId => {
   const cellIdAsArray = [...cellId]
   return {
     letter: cellIdAsArray[0],
@@ -85,7 +90,9 @@ export const isThereEnoughSpaceToPlaceShipVertically = (
   direction // top or bottom
 ) => {
   const { size: shipSize } = findShipById(player, shipId)
-  const { letter: cellLetter, number: cellNumber } = splitCellId(cellIdToAdd)
+  const { letter: cellLetter, number: cellNumber } = cellIdToCellObject(
+    cellIdToAdd
+  )
 
   let counter = 0
 
@@ -126,17 +133,20 @@ export const isThereEnoughSpaceToPlaceShipHorizontally = (
   direction // left or right
 ) => {
   const { size: shipSize } = findShipById(player, shipId)
-  const { letter: cellLetter } = splitCellId(cellIdToAdd)
+  const { letter: cellLetter } = cellIdToCellObject(cellIdToAdd)
 
   const letterIndexInLetters = letters.findIndex(
     letter => letter === cellLetter
   )
 
   if (direction === "left") {
-    return letterIndexInLetters - shipSize >= 0
+    return letterIndexInLetters > 0
   }
 
-  return letterIndexInLetters + shipSize <= 10
+  return (
+    letterIndexInLetters + shipSize <= 10 &&
+    10 - letterIndexInLetters >= shipSize
+  )
 }
 
 export const isLastCellToTheRight = firstLetterIndex =>
@@ -145,7 +155,111 @@ export const isLastCellToTheRight = firstLetterIndex =>
 export const isFirstCellToTheLeft = firstLetterIndex => firstLetterIndex === 0
 
 export const removeHorizontalCells = (availableCells, cell) =>
-  availableCells.filter(cellId => splitCellId(cellId).letter === cell.letter)
+  availableCells.filter(
+    cellId => cellIdToCellObject(cellId).letter === cell.letter
+  )
 
-export const removeVerticalCells = (availableCells, cell) =>
-  availableCells.filter(cellId => splitCellId(cellId).number === cell.number)
+export const removeVerticalCells = (availableCells, cellNumber) =>
+  availableCells.filter(
+    cellId => cellIdToCellObject(cellId).number === cellNumber
+  )
+
+export const shipHasMoreThanOneCell = ship => ship.cells.length > 1
+
+// if a ship has two cells with the same number that means that the ship is palced horizontally
+export const isShipIsPlacedHorizontally = ship =>
+  cellIdToCellObject(ship.cells[0]).number ===
+  cellIdToCellObject(ship.cells[1]).number
+
+// if a ship has two cells with the same letter that means that the ship is placed vertically
+export const isShipIsPlacedVertically = ship =>
+  cellIdToCellObject(ship.cells[0]).letter ===
+  cellIdToCellObject(ship.cells[1]).letter
+
+export const isShipCompletelyPlaced = ship => ship.cells.length === ship.size
+
+// returns the letters of all the painted cells for a ship
+export const getPaintedCellsLetters = (player, shipId) => {
+  const paintedCells = getPaintedCellsByShip(player, shipId)
+
+  return paintedCells.map(cellId => cellIdToCellObject(cellId).letter)
+}
+
+// returns the indexes from letters for a ship's cells
+export const getLetterIndexes = shipCellsLetter =>
+  shipCellsLetter.map(cellLetter => getFirstLetterIndex(letters, cellLetter))
+
+// HORIZONTAL SHIP
+export const getGreatestLetterIndex = letterIndexes =>
+  Math.max(...letterIndexes)
+
+export const isTheLastCellToTheRight = letterIndexes =>
+  getGreatestLetterIndex(letterIndexes) === 9
+
+export const isTheFirstCellToTheLeft = letterIndexes =>
+  getGreatestLetterIndex(letterIndexes) === 9
+
+export const getNextCellToTheRight = (cellNumber, letterIndexes) => {
+  const greatestLetterIndex = getGreatestLetterIndex(letterIndexes)
+
+  const nextCellToTheRight = addCellHorizontally(
+    letters,
+    getFirstLetterIndex(letters, letters[greatestLetterIndex]),
+    cellNumber,
+    "right"
+  )
+
+  return nextCellToTheRight
+}
+
+export const getFirstLetterIndex = (letters, letter) =>
+  letters.findIndex(letterItem => letterItem === letter)
+
+export const getNextCellToTheLeft = (
+  cellNumber,
+  firstHorizontalPaintedCellIndex
+) =>
+  addCellHorizontally(
+    letters,
+    getFirstLetterIndex(letters, letters[firstHorizontalPaintedCellIndex]),
+    cellNumber,
+    "left"
+  )
+
+// VERTICAL SHIP
+export const getFirstCellToTheTop = (player, shipId) => {
+  const paintedCells = getPaintedCellsByShip(player, shipId)
+  const paintedCellsNumbers = paintedCells.map(
+    cellId => cellIdToCellObject(cellId).number
+  )
+  return Math.min(...paintedCellsNumbers)
+}
+
+export const getLastCellToTheBottom = (player, shipId) => {
+  const paintedCells = getPaintedCellsByShip(player, shipId)
+  const paintedCellsNumbers = paintedCells.map(
+    cellId => cellIdToCellObject(cellId).number
+  )
+  return Math.max(...paintedCellsNumbers)
+}
+
+export const getPreviousVerticalCellId = (letter, firstCellToTheTop) =>
+  `${letter}${firstCellToTheTop - 1}`
+
+export const getNextVerticalCellId = (letter, lastCellToTheBottom) =>
+  `${letter}${lastCellToTheBottom + 1}`
+
+// CPU fuctions
+
+export const getRandomLetter = () =>
+  letters[Math.floor(Math.random() * letters.length)]
+
+export const getRandomOrientation = () =>
+  orientations[Math.floor(Math.random() * orientations.length)]
+
+export const buildRandomShip = shipSize => {
+  const randomLetter = getRandomLetter()
+  const randomOrientation = getRandomOrientation()
+  console.log("randomLetter: ", randomLetter)
+  console.log("randomOrientation: ", randomOrientation)
+}

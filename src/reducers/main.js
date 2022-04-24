@@ -6,10 +6,9 @@ import {
   isValidCellLetter,
   isValidCellNumber,
   findShipIndexInArray,
-  getBoardKeys,
   getPaintedCells,
   getPaintedCellsByShip,
-  splitCellId,
+  cellIdToCellObject,
   removeHorizontalCells,
   removeVerticalCells,
   findShipById,
@@ -17,7 +16,23 @@ import {
   isThereEnoughSpaceToPlaceShipVertically,
   isThereEnoughSpaceToPlaceShipHorizontally,
   isLastCellToTheRight,
-  isFirstCellToTheLeft
+  isFirstCellToTheLeft,
+  shipHasMoreThanOneCell,
+  isShipIsPlacedHorizontally,
+  isShipIsPlacedVertically,
+  isShipCompletelyPlaced,
+  getPaintedCellsLetters,
+  getLetterIndexes,
+  getNextCellToTheRight,
+  isTheLastCellToTheRight,
+  getNextCellToTheLeft,
+  getFirstLetterIndex,
+  getFirstCellToTheTop,
+  getLastCellToTheBottom,
+  getPreviousVerticalCellId,
+  getNextVerticalCellId,
+  getRandomLetter,
+  getRandomOrientation
 } from "../utils/helpers"
 import { letters, numbers, shipsToPlace } from "../utils/constants"
 
@@ -69,9 +84,10 @@ const gamePlayers = {
       { id: shipIds.submarine, size: 2, cells: [] }
     ]
   },
-  Cpu: {
-    id: "CPU",
-    name: "CPU",
+  cpu: {
+    id: "cpu",
+    name: "cpu",
+    availableCells: [],
     ships: [
       { id: shipIds.carrier, size: 4, cells: [] },
       { id: shipIds.cruiser1, size: 3, cells: [] },
@@ -87,94 +103,6 @@ const initialState = {
   currentShipToPlace: gamePlayers["player1"]["ships"][[0]],
   boards: { boardPlayer1, boardCPU }
 }
-
-/*
-const countAppearancesOfAShipOnTheBoard = (board, shipId) => {
-  const boardLetters = getBoardKeys(board)
-  let counter = 0
-  // console.log("function prueba board: ", JSON.stringify(board))
-  // console.log("function prueba boardLetters: ", boardLetters)
-
-  boardLetters.forEach(letter => {
-    // console.log("function prueba letter: ", letter)
-    for (let i = 1; i <= 10; i++) {
-      const cell = board[letter][i]
-      // console.log("function prueba board cell: ", cell)
-      if (cell.shipType === shipId) {
-        counter += 1
-      }
-    }
-  })
-
-  return counter
-}*/
-
-const isShipCompletelyPlaced = (ships, shipId) => {
-  const shipToCountAppearances = ships.find(ship => ship.id === shipId)
-  const boardLetters = getBoardKeys(ships)
-  if (shipToCountAppearances.cells.length === shipToCountAppearances.size) {
-    return true
-  }
-
-  return false
-  /*
-    let counter = 0
-  // console.log("function prueba board: ", JSON.stringify(board))
-  // console.log("function prueba boardLetters: ", boardLetters)
-
-  boardLetters.forEach(letter => {
-    // console.log("function prueba letter: ", letter)
-    for (let i = 1; i <= 10; i++) {
-      const cell = ships[letter][i]
-      // console.log("function prueba board cell: ", cell)
-      if (cell.shipType === shipId) {
-        counter += 1
-      }
-    }
-  })
-
-  return counter
-  */
-}
-
-// returns in how many cells a ship id appears to determine if the ship was completely placed on the board
-/*
-export const countAppearancesOfAShipOnTheBoard = (board, shipId) => {
-  // console.log("findCellsByShipId shipId:: ", shipId)
-
-  // iterates over all the letters in the board
-  let counter = 0
-  Object.entries(board).forEach(item => {
-    // gets all the cells for each letter in the board
-    const letter = item[0]
-    // object containing an object for each cell from 1 to 10 for that letter
-    const cellsObject = item[1]
-
-    // console.log("prueba entries:: ", Object.entries(board))
-    // console.log("prueba keys:: ", Object.keys(board))
-
-    // console.log("findCellsByShipId letter:: ", letter)
-    // console.log("findCellsByShipId cellsObject:: ", cellsObject)
-
-    // iterates each cell from 1 to 10 for each letter
-    Object.entries(cellsObject).forEach(cellObj => {
-      // gets the cell
-      const cell = cellObj[1]
-      if (cell.shipType === shipId) {
-        counter += 1
-      }
-      // console.log("findCellsByShipId cell:: ", cell)
-    })
-  })
-
-  // console.log("findCellsByShipId counter:: ", counter)
-
-  return counter
-
-  // // console.log("findCellsByShipId board:: ", board)
-  // board.filter(ship => // console.log("findCellsByShipId ship:: ", ship))
-}
-*/
 
 // function that receives the current list of ships from state (for a specific player)
 // and updates that list with the new ship placed in the board
@@ -245,195 +173,114 @@ const verifyEnoughSpaceToPlaceShip = player => {
   console.log("verifyEnoughSpaceToPlaceShip painted cells: ", paintedCells)
 }
 
-const getFirstLetterIndex = (letters, letter) =>
-  letters.findIndex(letterItem => letterItem === letter)
-
-const removeCellsToTheRight = (availableCells, letter, cell) => {
-  getFirstLetterIndex(letters, letter)
-  const cellsWithSameLetter = availableCells.filter(
-    cellId => splitCellId(cellId).letter === cell.letter
-  )
-  const a = cellsWithSameLetter.filter(
-    cellId => splitCellId(cellId).number <= splitCellId(cell.id).number
-  )
-
-  return a
-}
-
-const calculateAvailableCells = (player, ship, firstLetterIndex, cellId) => {
-  const cell = splitCellId(cellId)
-  let availableCells = [...player.availableCells]
+const calculateAvailableCells = (
+  player,
+  ship,
+  firstLetterIndex,
+  cell,
+  isThereEnoughSpaceToTheTop,
+  isThereEnoughSpaceToTheBottom,
+  isThereEnoughSpaceToTheRight,
+  isThereEnoughSpaceToTheLeft
+) => {
+  const { letter: cellLetter, number: cellNumber } = cell
   const playerShip = findShipById(player, ship.id)
-
-  console.log("ship::::", playerShip)
+  let availableCells = [...player.availableCells]
 
   // checks if the ship is on horizontal or vertical position
   // 2 or more cells are needed as with only 1 cell there's no position yet
-  if (playerShip.cells.length > 1) {
-    const isShipIsPlacedHorizontally =
-      splitCellId(playerShip.cells[0]).number ===
-      splitCellId(playerShip.cells[1]).number
-
-    const isShipIsPlacedVertically =
-      splitCellId(playerShip.cells[0]).letter ===
-      splitCellId(playerShip.cells[1]).letter
-
-    console.log("esta en la misma fila: ", isShipIsPlacedHorizontally)
-    console.log("esta en la misma columna: ", isShipIsPlacedVertically)
-
+  if (shipHasMoreThanOneCell(playerShip)) {
+    const shipPlacedHorizontally = isShipIsPlacedHorizontally(playerShip)
+    const shipPlacedVertically = isShipIsPlacedVertically(playerShip)
     const firstCellIdInShip = playerShip.cells[0]
-    const letter = splitCellId(firstCellIdInShip).letter
-    const lastCellIdInShip = playerShip.cells[playerShip.cells.length - 1]
+    const letter = cellIdToCellObject(firstCellIdInShip).letter
 
-    if (isShipIsPlacedHorizontally) {
-      console.log("PLAYER SHIP: ", playerShip)
-      if (playerShip.cells.length < playerShip.size) {
-        availableCells = removeVerticalCells(availableCells, cell)
+    if (shipPlacedHorizontally) {
+      if (!isShipCompletelyPlaced(playerShip)) {
+        availableCells = removeVerticalCells(availableCells, cell.number)
+        const shipCellsLetter = getPaintedCellsLetters(player, playerShip.id)
+        const letterIndexes = getLetterIndexes(shipCellsLetter)
 
-        const paintedCells = getPaintedCellsByShip(player, playerShip.id)
-        const paintedCellsLetters = paintedCells.map(
-          cellId => splitCellId(cellId).letter
-        )
-        const letterIndexes = paintedCellsLetters.map(cellLetter =>
-          getFirstLetterIndex(letters, cellLetter)
-        )
         const firstHorizontalPaintedCellIndex = getFirstCellIdFromPaintedCells(
           letterIndexes
         )
-        const maximumCellIdInPaintedCells = Math.max(...letterIndexes)
-        const newCellToTheRight = addCellHorizontally(
-          letters,
-          getFirstLetterIndex(letters, letters[maximumCellIdInPaintedCells]),
-          cell,
-          "right"
-        )
 
         availableCells = []
+
+        const nextCellToTheRight = getNextCellToTheRight(
+          cell.number,
+          letterIndexes
+        )
         // only add the cell if this is not the last cell to the right
         if (
-          maximumCellIdInPaintedCells < 9 &&
+          !isTheLastCellToTheRight(letterIndexes) &&
           // only adds the cell if it's not already included
-          !availableCells.includes(newCellToTheRight)
+          !availableCells.includes(nextCellToTheRight)
         ) {
-          availableCells.push(newCellToTheRight)
+          availableCells.push(nextCellToTheRight)
         }
 
         // only add the cell if this is not the first cell to the left
         if (firstHorizontalPaintedCellIndex > 0) {
           availableCells.push(
-            addCellHorizontally(
-              letters,
-              getFirstLetterIndex(
-                letters,
-                letters[firstHorizontalPaintedCellIndex]
-              ),
-              cell,
-              "left"
-            )
+            getNextCellToTheLeft(cellNumber, firstHorizontalPaintedCellIndex)
           )
         }
       } else {
         availableCells = []
       }
-    } else if (isShipIsPlacedVertically) {
-      if (playerShip.cells.length < playerShip.size) {
+    } else if (shipPlacedVertically) {
+      if (!isShipCompletelyPlaced(playerShip)) {
         availableCells = removeHorizontalCells(availableCells, cell)
+        const firstCellToTheTop = getFirstCellToTheTop(player, playerShip.id)
 
-        availableCells = availableCells.filter(
-          cellId =>
-            splitCellId(cellId).number ===
-              splitCellId(firstCellIdInShip).number - 1 ||
-            splitCellId(cellId).number ===
-              splitCellId(lastCellIdInShip).number + 1
+        const lastCellToTheBottom = getLastCellToTheBottom(
+          player,
+          playerShip.id
         )
 
-        // const nextCell = availableCells.find(
-        //   cellId =>
-        //     cellId ===
-        //     `${splitCellId(lastCellIdInShip).letter}${
-        //       splitCellId(lastCellIdInShip).number + 1
-        //     }`
-        // )
-
-        // if (nextCell !== undefined) {
-        //   availableCells = [
-        //     ...availableCells,
-        //     `${splitCellId(lastCellIdInShip).letter}${
-        //       splitCellId(lastCellIdInShip).number + 1
-        //     }`
-        //   ]
-        // }
-
-        // console.log("vertical nextCell: ", nextCell)
-
-        const paintedCells = getPaintedCellsByShip(player, playerShip.id)
-        const paintedCellsNumbers = paintedCells.map(
-          cellId => splitCellId(cellId).number
+        const previousCellId = getPreviousVerticalCellId(
+          letter,
+          firstCellToTheTop
         )
-        const minimumCellIdInPaintedCells = Math.min(...paintedCellsNumbers)
-        const maximumCellIdInPaintedCells = Math.max(...paintedCellsNumbers)
 
-        const previousCellIdFromPaintedCells = `${letter}${
-          minimumCellIdInPaintedCells - 1
-        }`
-
-        if (maximumCellIdInPaintedCells < 10) {
-          const nextCellIdFromPaintedCells = `${letter}${
-            maximumCellIdInPaintedCells + 1
-          }`
-
-          availableCells = [
-            previousCellIdFromPaintedCells,
-            nextCellIdFromPaintedCells
-          ]
-        } else if (!availableCells.includes(previousCellIdFromPaintedCells)) {
-          availableCells = [previousCellIdFromPaintedCells]
+        if (lastCellToTheBottom < 10) {
+          const nextCellId = getNextVerticalCellId(letter, lastCellToTheBottom)
+          availableCells = [previousCellId, nextCellId]
+        } else if (!availableCells.includes(previousCellId)) {
+          availableCells = [previousCellId]
         }
-
-        console.log(
-          "vertical previousCellIdFromPaintedCells: ",
-          previousCellIdFromPaintedCells
-        )
-
-        console.log(
-          "vertical minimumCellIdInPaintedCells: ",
-          minimumCellIdInPaintedCells
-        )
-        console.log(
-          "vertical maximumCellIdInPaintedCells: ",
-          maximumCellIdInPaintedCells
-        )
-
-        console.log("vertical first cell id: ", firstCellIdInShip)
-        console.log("vertical last cell id: ", lastCellIdInShip)
-        console.log("vertical painted cells: ", getPaintedCells(player))
-        console.log("vertical cells: ", availableCells)
       } else {
         availableCells = []
       }
     }
   } else {
-    const firstLetterIndex = letters.findIndex(
-      letterItem => letterItem === cell.letter
-    )
-
+    const firstLetterIndex = getFirstLetterIndex(letters, cell.letter)
     const isTheLastCellToTheRight = isLastCellToTheRight(firstLetterIndex)
     const isTheFirstCellToTheLeft = isFirstCellToTheLeft(firstLetterIndex)
 
-    if (!isTheLastCellToTheRight) {
+    if (!isTheLastCellToTheRight && isThereEnoughSpaceToTheRight) {
       if ((isValidCellLetter(letters[firstLetterIndex + 1]), cell.letter)) {
         // available to the right
         availableCells.push(
-          addCellHorizontally(letters, firstLetterIndex, cell, "right")
+          addCellHorizontally(letters, firstLetterIndex, cell.number, "right")
         )
       }
     }
 
-    if (!isTheFirstCellToTheLeft) {
+    const previousHorizontalCell = `${letters[firstLetterIndex - 1]}${
+      cell.number
+    }`
+
+    if (
+      isThereEnoughSpaceToTheLeft &&
+      !isTheFirstCellToTheLeft &&
+      !getPaintedCells(player).includes(previousHorizontalCell)
+    ) {
       if ((isValidCellLetter(letters[firstLetterIndex - 1]), cell.letter)) {
         // available to the left
         availableCells.push(
-          addCellHorizontally(letters, firstLetterIndex, cell, "left")
+          addCellHorizontally(letters, firstLetterIndex, cell.number, "left")
         )
       }
     }
@@ -441,14 +288,14 @@ const calculateAvailableCells = (player, ship, firstLetterIndex, cellId) => {
     if (isValidCellNumber(cell.number - 1)) {
       // available to the top
       availableCells.push(
-        addCellVertically(letters, firstLetterIndex, cell, "top")
+        addCellVertically(letters, firstLetterIndex, cell.number, "top")
       )
     }
 
     if (isValidCellNumber(cell.number + 1)) {
       // available to the bottom
       availableCells.push(
-        addCellVertically(letters, firstLetterIndex, cell, "bottom")
+        addCellVertically(letters, firstLetterIndex, cell.number, "bottom")
       )
     }
   }
@@ -458,10 +305,16 @@ const calculateAvailableCells = (player, ship, firstLetterIndex, cellId) => {
 
 const reducer = (state = initialState, action) => {
   switch (action.type) {
+    case "GENERATE_RANDOM_BOARD":
     case "PLACE_SHIP":
-      const { playerId, ship, cellId } = action.payload
+      const {
+        playerId,
+        ship,
+        cell,
+        cell: { id: cellId, letter: cellLetter, number: cellNumber }
+      } = action.payload
       const player = state.players[playerId]
-      const cell = splitCellId(cellId)
+      // const cell = cellIdToCellObject(cellId)
 
       const isThereEnoughSpaceToTheBottom = isThereEnoughSpaceToPlaceShipVertically(
         player,
@@ -493,7 +346,7 @@ const reducer = (state = initialState, action) => {
 
       const noAvailableDirections =
         !isThereEnoughSpaceToTheTop &&
-        !isThereEnoughSpaceToTheTop &&
+        !isThereEnoughSpaceToTheBottom &&
         !isThereEnoughSpaceToTheLeft &&
         !isThereEnoughSpaceToTheRight
 
@@ -520,7 +373,7 @@ const reducer = (state = initialState, action) => {
       )
 
       const firstLetterIndex = letters.findIndex(
-        letterItem => letterItem === cell.letter
+        letterItem => letterItem === cellLetter
       )
 
       const shipsArray = [...state.players[playerId].ships]
@@ -528,7 +381,7 @@ const reducer = (state = initialState, action) => {
       const nextShipIndex = currentShipIndex + 1
 
       console.log("reduce player: ", player)
-      let newArray = []
+
       const prueba = shipsArray.map(shipItem => {
         console.log("reduce ship: ", shipItem)
         if (ship.id === shipItem.id) {
@@ -555,7 +408,11 @@ const reducer = (state = initialState, action) => {
         updatedPlayer,
         ship,
         firstLetterIndex,
-        cellId
+        cell,
+        isThereEnoughSpaceToTheTop,
+        isThereEnoughSpaceToTheBottom,
+        isThereEnoughSpaceToTheRight,
+        isThereEnoughSpaceToTheLeft
       )
 
       const updatedShip = findShipById(updatedPlayer, ship.id)
@@ -583,70 +440,6 @@ const reducer = (state = initialState, action) => {
             ? shipsToPlace[nextShipIndex]
             : state.currentShipToPlace
       }
-
-      calculateAvailableCells()
-    /*
-      // verifyEnoughSpaceToPlaceShip(player)
-
-      console.log("NEW PAYLOAD: ", action.payload)
-      console.log("NEW PLAYER: ", { ...player })
-      // const cellId = `${letter}${number}`
-
-      const updatedPlayerBoard = {
-        ...player,
-        ships: [...player.ships, cellId]
-      }
-
-      const updatedShip = findShipById(player, ship.id)
-      console.log("NEW ship: ", updatedShip)
-
-      console.log("NEW updatedPlayerBoard: ", updatedPlayerBoard)
-
-      const firstLetterIndex = letters.findIndex(
-        letterItem => letterItem === cell.letter
-      )
-
-      if (!areCellsValid(ship, firstLetterIndex)) return state
-
-      const updatedShipNew = fillShipCells(
-        updatedShip,
-        cell.number,
-        firstLetterIndex
-      )
-
-      console.log("NEW SHIP UPDATED: ", updatedShipNew)
-
-      const playerShips = player.ships
-      const isShipPlaced = isShipCompletelyPlaced(playerShips, ship.id)
-      const currentShipIndex = findShipIndexInArray(ship.id)
-      const nextShipIndex = currentShipIndex + 1
-      const isInitialShip = state.currentShipToPlace.id === "carrier"
-
-      console.log(
-        "UPDATED RES: ",
-        updatedPlayerShips(playerShips, ship.id, updatedShipNew)
-      )
-      const updatedPlayer = {
-        ...state.players[playerId],
-        ships: updatedPlayerShips(playerShips, ship.id, updatedShipNew)
-      }
-
-      console.log("UPDATED currentShipToPlace: ", state.currentShipToPlace)
-      console.log("UPDATED SHIP: ", updatedShipNew)
-      console.log("UPDATED PLAYER: ", updatedPlayer)
-      console.log("UPDATED nextShipIndex: ", nextShipIndex)
-
-      return {
-        ...state,
-        players: {
-          ...state.players,
-          [playerId]: { ...state.players[playerId], ...updatedPlayer }
-        },
-        currentShipToPlace:
-          nextShipIndex < shipsToPlace.length + 1
-            ? shipsToPlace[nextShipIndex]
-            : null
-      }*/
 
     default:
       return state
