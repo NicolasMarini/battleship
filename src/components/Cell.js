@@ -38,21 +38,19 @@ const Cell = ({ playerId, id, letter, number }) => {
       }}
       onClick={() =>
         dispatch(
-          player.boardCreationAction
-          // placeShip({
-          //   playerId,
-          //   ship: currentShipToPlace,
-          //   cell: {
-          //     id,
-          //     letter,
-          //     number
-          //   }
-          // })
+          placeShip({
+            playerId,
+            ship: currentShipToPlace,
+            cell: {
+              id,
+              letter,
+              number
+            }
+          })
         )
       }
     >
       {`${letter}${number}`}
-      {/* <button onClick={() => alert("rotating...")}>Rotate</button> */}
     </button>
   )
 }
