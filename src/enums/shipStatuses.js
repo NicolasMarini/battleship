@@ -1,5 +1,5 @@
-export default={
-  hit:'HIT',
-  destroyed:'DESTROYED',
-  missed:'MISSED'
+export default {
+  hit: "HIT",
+  destroyed: "DESTROYED",
+  missed: "MISSED"
 }
