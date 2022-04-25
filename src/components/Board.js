@@ -1,6 +1,6 @@
-import React from "react"
+import React, { useEffect } from "react"
 import { useDispatch, useSelector } from "react-redux"
-import { selectShip } from "../actions/actions"
+import { generateRandomBoard } from "../actions/actions"
 import Row from "./Row"
 import shipIds from "../enums/shipIds"
 
@@ -10,37 +10,21 @@ const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 // const numbers = [1, 2, 3, 4]
 
 const Board = ({ playerId }) => {
-  // const boardRows = generateBoardStructure(letters, numbers)
-
-  // console.log("boardRows: ", boardRows)
-
-  // const [selectedShip, setSelectedShip] = useState(null)
-  const currentShipToPlace = useSelector(state => state.currentShipToPlace)
-  const boardPlayer1 = useSelector(state => state.boards.boardPlayer1)
   const dispatch = useDispatch()
+  const player = useSelector(state => state.players[playerId])
+
+  const currentShipToPlace = useSelector(state => state.currentShipToPlace)
 
   console.log("Board currentShipToPlace: ", currentShipToPlace)
-  console.log("boardPlayer1:: ", boardPlayer1)
 
   return (
     <>
       <div>
-        <h4>Carrier (4 cells)</h4>
-        {/* <h4>Selected: {JSON.stringify(selectedShip)}</h4> */}
-        <div
-          // onClick={() => dispatch(selectShip(testSelectedShip))}
-          style={{ backgroundColor: "blue", width: 100, height: 25 }}
-        ></div>
+        <h4>{player.name}</h4>
       </div>
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          backgroundColor: "grey"
-        }}
-      >
+      <div>
         {numbers.map(number => (
-          <div style={{ flexDirection: "row", backgroundColor: "green" }}>
+          <div>
             <Row playerId={playerId} number={number} letters={letters} />
           </div>
         ))}
