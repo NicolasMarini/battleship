@@ -1,32 +1,39 @@
 import React, { useEffect } from "react"
 import { useDispatch, useSelector } from "react-redux"
 import { placeShip, makeMove } from "../actions/actions"
-import { getPaintedCells } from "../utils/helpers"
+import {
+  getPaintedCells,
+  getAllCellsIdsFromAllShips,
+  getCellColorByStatus
+} from "../utils/helpers"
+import shipStatuses from "../enums/shipStatuses"
 
 const Cell = ({ playerId, id, letter, number }) => {
-  // console.log("data: ", data)
-  // console.log("id: ", id)
   const dispatch = useDispatch()
   const currentShipToPlace = useSelector(state => state.currentShipToPlace)
-  // const board = useSelector(state => state.boards.boardPlayer1)
   const player = useSelector(state => state.players[playerId])
   const { availableCells } = player
   const gameStarted = useSelector(state => state.gameStarted)
+  const currentPlayerMoving = useSelector(state => state.currentPlayerMoving)
+  const missedShots = useSelector(
+    state => state.players[currentPlayerMoving].missedShots
+  )
 
-  const shouldPaintCell = player => {
-    // if (getPaintedCells(_board) === 0) return false
-    getPaintedCells(player)
+  const players = useSelector(state => state.players)
 
-    // console.log(
-    //   "shouldPaintCell cells boolean: ",
-    //   Boolean(cells.find(cell => cell === `${letter}${number}`))
-    // )
-    // return Boolean(cells.find(cell => cell === `${letter}${number}`))
-  }
+  const allCellsIdsFromAllShips = getAllCellsIdsFromAllShips(player.ships)
 
+  console.log("CELL currentPlayerMoving: ", currentPlayerMoving)
   console.log("currentShipToPlace: ", currentShipToPlace)
   console.log("currentPlayer: ", player)
   console.log("gameStarted: ", gameStarted)
+  // console.log("UPDATED STATE: ", state)
+  console.log("CELL MISSED SHOTS: ", missedShots)
+  console.log(
+    "allCellsIdsFromAllShips: ",
+    getAllCellsIdsFromAllShips(player.ships)
+  )
+  console.log("CELL PLAYERS: ", players)
 
   const actionToDispatch = () => {
     if (!gameStarted) {
@@ -58,6 +65,15 @@ const Cell = ({ playerId, id, letter, number }) => {
 
   const paintedCells = getPaintedCells(player).map(cell => cell.id)
 
+  const getBackgroundColor = () => {
+    let cell = allCellsIdsFromAllShips.find(cell => cell.id === id)
+    if (!cell && player.id !== currentPlayerMoving) {
+      cell = missedShots.find(cell => cell.id === id)
+    }
+
+    return getCellColorByStatus(cell)
+  }
+
   return (
     <button
       disabled={!availableCells.includes(id) && availableCells.length > 0}
@@ -66,7 +82,8 @@ const Cell = ({ playerId, id, letter, number }) => {
         border: "1px solid black",
         width: 30,
         height: 30,
-        backgroundColor: paintedCells.includes(id) ? "grey" : "#fff"
+        backgroundColor: getBackgroundColor()
+        // paintedCells.includes(id) ? "grey" : "#fff"
       }}
       onClick={actionToDispatch}
     >

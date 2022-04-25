@@ -1,4 +1,5 @@
 import { shipsToPlace, letters, orientations } from "./constants"
+import shipStatuses from "../enums/shipStatuses"
 
 export const getBoardKeys = board => {
   return Object.keys(board)
@@ -370,11 +371,127 @@ export const buildRandomShip = shipSize => {
   console.log("randomOrientation: ", randomOrientation)
 }
 
-// GAME FUNCTIONS
-export const shipWasHit = (player, cell) => {
-  const { ships: playerShips } = player
+export const getAllCellsIdsFromAllShips = ships => {
+  const cellsIdsFromAllShips = ships.map(ship => {
+    return ship.cells.map(cell => cell)
+  })
 
-  return playerShips.some(ship => ship.cells.includes(cell.id))
+  const cells = []
+
+  cellsIdsFromAllShips.forEach(cellsIdsArray =>
+    cellsIdsArray.forEach(cell => cells.push(cell))
+  )
+
+  return cells
 }
 
-// export const setHitStatusTo
+// GAME FUNCTIONS
+export const anyShipWasHit = (player, cell) => {
+  const { ships: playerShips } = player
+  const cellsIdsFromAllShips = playerShips.map(ship => {
+    return ship.cells.map(cell => cell.id)
+  })
+
+  const cellsIds = []
+
+  cellsIdsFromAllShips.forEach(cellsIdsArray =>
+    cellsIdsArray.forEach(cellId => cellsIds.push(cellId))
+  )
+
+  return cellsIds.includes(cell.id)
+}
+
+export const getHitShip = (player, cellId) => {
+  const { ships: playerShips } = player
+
+  const hitShip = playerShips.find(ship =>
+    ship.cells.find(cell => cell.id === cellId)
+  )
+  return hitShip
+}
+
+export const shoot = (player, cell) => {
+  if (anyShipWasHit(player, cell)) {
+    let hitShip = getHitShip(player, cell.id)
+
+    let cellToMarkAsHit = getCellByIdInsideAShip(cell.id, hitShip)
+    cellToMarkAsHit = { ...cellToMarkAsHit, status: shipStatuses.hit }
+
+    const updatedCells = hitShip.cells.filter(
+      cellItem => cellItem.id !== cell.id
+    )
+
+    hitShip = { ...hitShip, cells: [...updatedCells, cellToMarkAsHit] }
+
+    if (isShipDestroyed(hitShip)) {
+      const cellsMarkedAsDestroyed = markCellsAsDestroyed(hitShip)
+      return {
+        ...hitShip,
+        cells: cellsMarkedAsDestroyed,
+        status: shipStatuses.destroyed
+      }
+    }
+
+    console.log("SHIP SUNKEN: ", isShipDestroyed(hitShip))
+
+    return hitShip
+  }
+
+  return null
+}
+
+export const addMissedShot = (currentMissedShots, cell) => {
+  return [...currentMissedShots, { ...cell, status: shipStatuses.missed }]
+  // return [...currentMissedShots, cell.id]
+}
+
+export const getCellByIdInsideAShip = (cellId, ship) =>
+  ship.cells.find(cell => cell.id === cellId)
+
+export const getCellsByShipId = (ships, shipId) =>
+  ships.find(ship => ship.id === shipId)
+
+export const isShipDestroyed = ship => {
+  let hitCellsCount = 0
+
+  for (let i = 0; i < ship.size; i++) {
+    if (ship.cells[i].status === shipStatuses.hit) {
+      hitCellsCount += 1
+    }
+  }
+
+  return hitCellsCount === ship.cells.length
+}
+
+export const markCellsAsDestroyed = ship => {
+  const destroyedCells = []
+
+  for (let i = 0; i < ship.cells.length; i++) {
+    const cell = { ...ship.cells[i], status: shipStatuses.destroyed }
+    destroyedCells.push(cell)
+  }
+  return destroyedCells
+}
+
+export const getCellColorByStatus = cell => {
+  if (!cell) return "#fff"
+
+  switch (cell.status) {
+    case shipStatuses.missed:
+      return "#519ecf"
+    case shipStatuses.hit:
+      return "orange"
+    case shipStatuses.destroyed:
+      return "red"
+    default:
+      return "grey"
+  }
+}
+
+export const getNextPlayer = (players, currentPlayerMoving) => {
+  const nextPlayer = Object.keys(players).find(
+    playerId => playerId !== currentPlayerMoving
+  )
+
+  return nextPlayer
+}

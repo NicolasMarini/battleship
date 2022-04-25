@@ -28,9 +28,12 @@ import {
   removeHorizontalCells,
   removeVerticalCells,
   shipHasMoreThanOneCell,
-  shipWasHit,
+  anyShipWasHit,
   getAvailableCellsHorizontally,
-  getAvailableCellsVertically
+  getAvailableCellsVertically,
+  shoot,
+  addMissedShot,
+  getNextPlayer
 } from "../utils/helpers"
 
 const generateRow = (letter, numbers) => {
@@ -73,6 +76,7 @@ const gamePlayers = {
     id: "player1",
     name: "player1",
     availableCells: [],
+    missedShots: [],
     ships: [
       { id: shipIds.carrier, size: 4, cells: [], status: null },
       { id: shipIds.cruiser1, size: 3, cells: [], status: null },
@@ -83,8 +87,9 @@ const gamePlayers = {
   },
   cpu: {
     id: "cpu",
-    name: "cpu",
+    name: "CPU",
     availableCells: [],
+    missedShots: [],
     ships: [
       {
         id: shipIds.carrier,
@@ -187,8 +192,10 @@ const gamePlayers = {
 
 const initialState = {
   players: gamePlayers,
-  // gameStarted: true,
-  gameStarted: false,
+  gameStarted: true,
+  // gameStarted: false,
+  gameEnded: false,
+  winner: null,
   currentPlayerMoving: gamePlayers.player1.id,
   currentShipToPlace: gamePlayers["player1"]["ships"][[0]],
   boards: { boardPlayer1, boardCPU }
@@ -344,19 +351,45 @@ const reducer = (state = initialState, action) => {
     case "MAKE_MOVE":
       const { cell: selectedCell, playerId: targetPlayerId } = action.payload
       const targetPlayer = state.players[targetPlayerId]
+      const { currentPlayerMoving, players } = state
+      let notCurrentPlayer = getNextPlayer(players, currentPlayerMoving)
+      const { missedShots } = state.players[currentPlayerMoving]
+      let updatedMissedShots = [...missedShots]
 
+      console.log("make_move notCurrentPlayer: ", notCurrentPlayer)
       console.log("make_move payload: ", action.payload)
       console.log("make_move targetPlayer: ", targetPlayer)
-      console.log(
-        "make_move was the ship hit: ",
-        shipWasHit(targetPlayer, selectedCell)
-      )
+      console.log("make_move shoot result: ", shoot(targetPlayer, selectedCell))
 
-      shipWasHit(targetPlayer, selectedCell)
+      const updatedShipAfterShot = shoot(targetPlayer, selectedCell)
+
+      let updatedShipsForTargetPlayer = state.players[notCurrentPlayer].ships
+
+      if (updatedShipAfterShot) {
+        updatedShipsForTargetPlayer = state.players[
+          notCurrentPlayer
+        ].ships.filter(ship => ship.id !== updatedShipAfterShot.id)
+
+        updatedShipsForTargetPlayer.push(updatedShipAfterShot)
+      } else {
+        updatedMissedShots = addMissedShot(updatedMissedShots, selectedCell)
+        // updatedMissedShots = [...updatedMissedShots, selectedCell.id]
+      }
 
       return {
         ...state,
-        currentPlayerMoving: gamePlayers.cpu.id
+        players: {
+          ...state.players,
+          [currentPlayerMoving]: {
+            ...state.players[currentPlayerMoving],
+            missedShots: updatedMissedShots
+          },
+          [notCurrentPlayer]: {
+            ...state.players[gamePlayers.cpu.id],
+            ships: updatedShipsForTargetPlayer
+          }
+        }
+        // currentPlayerMoving: notCurrentPlayer
       }
 
     case "PLACE_SHIP":
